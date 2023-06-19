@@ -1,0 +1,130 @@
+import cv2
+import os as so
+from cvzone.HandTrackingModule import HandDetector
+import numpy as np
+
+#variaveis
+
+width, height = 1920, 1080
+img_number = 0
+hs, ws = int(120*1), int(213*1)
+gestureThreshold = 300
+action = False
+counter = 0
+delay = 30
+#paint = [[]]
+#paint_number = -1
+#start = False
+
+
+#camera setup
+
+cap = cv2.VideoCapture(0)
+cap.set(3, width)
+cap.set(4, height)
+
+#pegando as imagens
+
+images = sorted(so.listdir('apresentacao'), key=len)
+#print(images)
+
+#detector de mãos
+
+detector = HandDetector(detectionCon=0.8,maxHands=1)
+
+
+
+
+while True:
+    success, img = cap.read()
+    img = cv2.flip(img, 1)
+    path_full_image = so.path.join('apresentacao', images[img_number])
+    image_current = cv2.imread(path_full_image)
+
+    hands, img = detector.findHands(img)
+    cv2.line(img, (0, gestureThreshold), (width, gestureThreshold), (0,255,0), 10)
+
+    if hands and action is False:
+        hand = hands[0]
+        fingers = detector.fingersUp(hand)
+        center_x, center_y = hand['center']
+        lmlist = hand['lmList']
+
+
+        value_x = int(np.interp(lmlist[8][0], [width // 2, w], [0, width]))
+        value_y = int(np.interp(lmlist[8][1], [150, height-150], [0, height]))
+        index_finger = value_x, value_y
+        #print(f"fingers:{fingers}")
+
+        if center_y <= gestureThreshold: #Verifica se a mão esta acima da altura do rosto/ ou do meio da tela
+
+            #dedão passa o slide para a pagina anterior
+            if fingers== [1,0,0,0,0]:
+                #start = False
+                print('Left')
+                if img_number > 0:
+                    action = True
+                    #paint = [[]]
+                    #paint_number = -1
+                    img_number -= 1
+
+            # dedo mindinho passa o slide para a pagina seguinte
+            elif fingers == [0,0,0,0,1]:
+                #start = False
+                print('Right')
+
+                if img_number <= len(images):
+                    action = True
+                    #paint = [[]]
+                    #paint_number = -1
+
+                    img_number += 1
+        #dedo indicador e do meio, usado como um laiser para apontar alguma coisa no slide
+        if fingers == [0,1,1,0,0]:
+            cv2.circle(image_current, index_finger, 12, (0,0,255), cv2.FILLED)
+
+        #dedo indicador, usado para 'riscar' o slide
+        '''elif fingers == [0,1,0,0,0]:
+            start = True
+            if start is False:
+
+                paint_number += 1
+                paint.append([])
+            cv2.circle(image_current, index_finger, 12, (0,0,255), cv2.FILLED)
+            paint[paint_number].append(index_finger)
+        else:
+            start = False'''
+
+        #Dedo indicador, meio e anelar, usado para apagar os 'riscos'
+#        if fingers == [0,1,1,1,0]:
+#            if paint:
+#                if paint_number > -1:
+#                    paint.pop()
+#                   paint_number -= 1
+#                    action = True
+
+
+    if action:
+        counter += 1
+        if counter >= delay:
+            action = False
+            counter = 0
+
+#    for n in range(len(paint)):
+#        for m in range(len(paint[n])):
+#            if m != 0:
+#                cv2.line(image_current, paint[n][m-1], paint[n][m], (0,0,200), 12)
+
+
+    #Adicionando image webcam nos slides
+    image_small = cv2.resize(img, (ws, hs))
+    h, w, _ = image_current.shape
+
+    image_current[0:hs, w-ws:w] = image_small
+
+    cv2.imshow("Image", img)
+    cv2.imshow("Slides", image_current)
+    key = cv2.waitKey(1)
+
+    if key == ord('f'):
+        break
